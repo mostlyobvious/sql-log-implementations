@@ -15,6 +15,7 @@ require "json"
 require "securerandom"
 
 DB = Sequel.connect(ENV.fetch("DATABASE_URL"))
+DB.drop_table?(:log)
 DB.create_table?(:log) do
   primary_key :id
   column :data, "jsonb", null: false
@@ -36,7 +37,7 @@ baseline =
 locking =
   lambda do
     DB.transaction do
-      DB["SELECT pg_advisory_xact_lock(1845240511599988039)"]
+      DB.run("SELECT pg_advisory_xact_lock(1845240511599988039)")
       DB[:log].insert(
         data: JSON.dump({ "kaka" => "dudu" }),
         type: "kaka.dudu",
