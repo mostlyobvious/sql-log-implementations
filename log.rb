@@ -8,21 +8,11 @@ gemfile do
 end
 
 require "securerandom"
+require "logger"
 
 producer_count = 5
 consumer_count = 1
-batch_size = 1000
-
-$barrier = Concurrent::CyclicBarrier.new(producer_count + consumer_count)
-
-$db =
-  Sequel.connect(
-    ENV.fetch("DATABASE_URL"),
-    pool: producer_count + consumer_count,
-    preconnect: :concurrently
-  )
-$db.drop_table?(:log)
-$db.create_table?(:log) { primary_key :id }
+batch_size = 1_000
 
 consumer =
   lambda do
@@ -33,12 +23,16 @@ consumer =
 
     loop do
       results = $db[:log].where { id > last_id }.order(:id).to_a
-      next if results.empty?
+      if results.empty?
+        last_id == producer_count * batch_size ? break : next
+      else
+        last_id, count = [results.last[:id], results.size + count]
 
-      last_id, count = [results.last[:id], results.size + count]
-
-      print "expected: #{producer_count * batch_size}, consumed: #{count}\r"
+        print "last_id: #{last_id}, consumed: #{count}/#{producer_count * batch_size}\r"
+      end
+      sleep 0.001
     end
+    puts
   end
 
 producer =
@@ -46,13 +40,53 @@ producer =
     $barrier.wait
     puts "producer.#{SecureRandom.hex(2)} started"
 
-    batch_size.times.with_index(1) { |_, count| $db[:log].insert }
+    batch_size
+      .times
+      .with_index(1) do |_, count|
+        $db.transaction do
+          $db[:log].insert
+          sleep rand(0.001..0.003)
+        end
+      end
   end
 
-producer_pool = Concurrent::FixedThreadPool.new(producer_count)
-producer_count.times { producer_pool.post { producer.call } }
+serialized_producer =
+  lambda do
+    $barrier.wait
+    puts "producer.#{SecureRandom.hex(2)} started"
 
-consumer_pool = Concurrent::FixedThreadPool.new(consumer_count)
-consumer_count.times { consumer_pool.post { consumer.call } }
+    batch_size
+      .times
+      .with_index(1) do |_, count|
+        $db.transaction do
+          $db.run("SELECT pg_advisory_xact_lock(2137)")
+          $db[:log].insert
+          sleep rand(0.001..0.003)
+        end
+      end
+  end
 
-[producer_pool, consumer_pool].each(&:shutdown).each(&:wait_for_termination)
+{
+  "ordinary producer" => [producer, consumer],
+  "serialized producer" => [serialized_producer, consumer]
+}.each do |name, (producer, consumer)|
+  puts
+  puts "--- #{name} ---"
+
+  $barrier = Concurrent::CyclicBarrier.new(producer_count + consumer_count)
+
+  $db =
+    Sequel.connect(
+      ENV.fetch("DATABASE_URL"),
+      pool: producer_count + consumer_count,
+      preconnect: :concurrently
+    )
+  $db.drop_table?(:log)
+  $db.create_table?(:log) { primary_key :id }
+
+  pool = Concurrent::FixedThreadPool.new(producer_count + consumer_count)
+  consumer_count.times { pool.post { consumer.call } }
+  producer_count.times { pool.post { producer.call } }
+  pool.shutdown
+  pool.wait_for_termination
+end
