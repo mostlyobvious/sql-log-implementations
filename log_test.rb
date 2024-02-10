@@ -7,22 +7,36 @@ gemfile do
 end
 
 class LogTest < Minitest::Test
+  class Actor
+    def initialize(mk_connection, name)
+      @pg = mk_connection.call
+      @name = name
+    end
+
+    def begin = @pg.exec("BEGIN")
+    def insert = @pg.exec_params("INSERT INTO log (name) VALUES ($1)", [@name])
+    def commit = @pg.exec("COMMIT")
+  end
+
   # kaka:  [ 1  ]
   # dudu:   [ 2   ]
   # query:     Q Q Q
   def test_no_overlap
     run_lifecycle do |pg|
-      kaka, dudu = mk_actor, mk_actor
+      kaka, dudu = mk_actor("kaka"), mk_actor("dudu")
 
-      kaka.resume
-      dudu.resume
-      assert_empty visible_row_ids
+      kaka.begin
+      dudu.begin
 
-      kaka.resume
-      assert_equal [1], visible_row_ids
+      kaka.insert
+      dudu.insert
+      assert_empty visible_rows
 
-      dudu.resume
-      assert_equal [1, 2], visible_row_ids
+      kaka.commit
+      assert_equal [{ 1 => "kaka" }], visible_rows
+
+      dudu.commit
+      assert_equal [{ 1 => "kaka" }, { 2 => "dudu" }], visible_rows
     end
   end
 
@@ -31,44 +45,41 @@ class LogTest < Minitest::Test
   # query:      Q Q Q
   def test_overlap
     run_lifecycle do |pg|
-      kaka, dudu = mk_actor, mk_actor
+      kaka, dudu = mk_actor("kaka"), mk_actor("dudu")
 
-      dudu.resume
-      kaka.resume
-      assert_empty visible_row_ids
+      kaka.begin
+      dudu.begin
 
-      kaka.resume
-      assert_equal [2], visible_row_ids
+      dudu.insert
+      kaka.insert
+      assert_empty visible_rows
 
-      dudu.resume
-      assert_equal [1, 2], visible_row_ids
+      kaka.commit
+      assert_equal [{ 2 => "kaka" }], visible_rows
+
+      dudu.commit
+      assert_equal [{ 1 => "dudu" }, { 2 => "kaka" }], visible_rows
     end
   end
 
   private
 
-  def visible_row_ids
-    pg = mk_connection.call
-    pg.exec("SELECT id FROM log").map { |row| row.fetch("id").to_i }
+  def visible_rows
+    mk_connection
+      .call
+      .exec("SELECT id, name FROM log")
+      .map { |row| { row.fetch("id").to_i => row.fetch("name") } }
   end
 
   def run_lifecycle
     pg = mk_connection.call
-    pg.exec("CREATE TABLE log (id serial primary key)")
+    pg.exec("CREATE TABLE log (id serial primary key, name varchar)")
     yield pg
   ensure
     pg.exec("DROP TABLE log")
   end
 
-  def mk_actor
-    Fiber.new do
-      pg = mk_connection.call
-      pg.exec("BEGIN")
-      pg.exec("INSERT INTO log DEFAULT VALUES")
-      Fiber.yield
-      pg.exec("COMMIT")
-    end
-  end
+  def mk_actor(name) = Actor.new(mk_connection, name)
 
   def mk_connection = -> { PG.connect(dbname: "log") }
 end
