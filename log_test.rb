@@ -75,11 +75,19 @@ class LogTest < Minitest::Test
     pg = mk_connection.call
     pg.exec("CREATE TABLE log (id serial primary key, name varchar)")
     yield pg
+  rescue PG::QueryCanceled => e
   ensure
     pg.exec("DROP TABLE log")
   end
 
   def mk_actor(name) = Actor.new(mk_connection, name)
 
-  def mk_connection = -> { PG.connect(dbname: "log") }
+  def mk_connection =
+    -> do
+      PG
+        .connect(dbname: "log")
+        .tap do |connection|
+          connection.exec("SET idle_in_transaction_session_timeout = 1000")
+        end
+    end
 end
