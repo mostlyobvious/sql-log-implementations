@@ -21,8 +21,8 @@ class LogTest < Minitest::Test
   end
 
   def test_no_overlap_scenario_simple_reader
-    run_lifecycle do |connection|
-      scenario, consumer = mk_no_overlap_scenario, mk_consumer(connection)
+    run_lifecycle do
+      scenario, consumer = mk_no_overlap_scenario, mk_consumer
 
       3.times do
         scenario.resume
@@ -35,8 +35,8 @@ class LogTest < Minitest::Test
   end
 
   def test_overlap_scenario_simple_reader
-    run_lifecycle do |connection|
-      scenario, consumer = mk_overlap_scenario, mk_consumer(connection)
+    run_lifecycle do
+      scenario, consumer = mk_overlap_scenario, mk_consumer
 
       3.times do
         scenario.resume
@@ -110,25 +110,23 @@ class LogTest < Minitest::Test
     end
   end
 
-  def mk_consumer(connection)
-    Class
-      .new do
-        attr_reader :last_id, :consumed_ids
+  def mk_consumer = Consumer.new(mk_connection.call)
 
-        def initialize(connection)
-          @connection = connection
-          @last_id = 0
-          @consumed_ids = []
-        end
+  class Consumer
+    attr_reader :last_id, :consumed_ids
 
-        def call(implementation)
-          last_id, consumed_ids = implementation.call(@connection, @last_id)
-          return if consumed_ids.empty?
+    def initialize(connection)
+      @connection = connection
+      @last_id = 0
+      @consumed_ids = []
+    end
 
-          @last_id = last_id
-          @consumed_ids.concat(consumed_ids)
-        end
-      end
-      .new(connection)
+    def call(implementation)
+      last_id, consumed_ids = implementation.call(@connection, @last_id)
+      return if consumed_ids.empty?
+
+      @last_id = last_id
+      @consumed_ids.concat(consumed_ids)
+    end
   end
 end
