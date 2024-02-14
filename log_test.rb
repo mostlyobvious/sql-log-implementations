@@ -92,7 +92,7 @@ class LogTest < Minitest::Test
   end
 
   def mk_connection
-    -> do
+    lambda do
       connection = PG.connect(dbname: "log")
       connection.exec("SET idle_in_transaction_session_timeout = 1000")
       connection
