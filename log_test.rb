@@ -11,10 +11,27 @@ class LogTest < Minitest::Test
     lambda do |connection, last_id|
       rows =
         connection
-          .exec_params(
-            "SELECT id FROM log WHERE id > $1 ORDER BY id",
-            [last_id]
-          )
+          .exec_params(<<~SQL, [last_id])
+            SELECT id 
+            FROM log 
+            WHERE id > $1
+            ORDER BY id
+          SQL
+          .map { |row| row.fetch("id").to_i }
+      [rows.last, rows]
+    end
+  end
+
+  def xmin_reader
+    lambda do |connection, last_id|
+      rows =
+        connection
+          .exec_params(<<~SQL, [last_id])
+            SELECT id 
+            FROM log 
+            WHERE id > $1 AND xmin::text < txid_snapshot_xmin(txid_current_snapshot())::text
+            ORDER BY id
+          SQL
           .map { |row| row.fetch("id").to_i }
       [rows.last, rows]
     end
@@ -41,6 +58,34 @@ class LogTest < Minitest::Test
       3.times do
         scenario.resume
         consumer.call(simple_reader)
+      end
+
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
+  end
+
+  def test_no_overlap_scenario_xmin_reader
+    run_lifecycle do
+      scenario, consumer = mk_no_overlap_scenario, mk_consumer
+
+      3.times do
+        scenario.resume
+        consumer.call(xmin_reader)
+      end
+
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
+  end
+
+  def test_overlap_scenario_xmin_reader
+    run_lifecycle do
+      scenario, consumer = mk_overlap_scenario, mk_consumer
+
+      3.times do
+        scenario.resume
+        consumer.call(xmin_reader)
       end
 
       assert_equal 2, consumer.last_id
