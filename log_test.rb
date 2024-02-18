@@ -118,7 +118,7 @@ class LogTest < Minitest::Test
           .exec_params(<<~SQL, [last_id])
             SELECT id 
             FROM log 
-            WHERE id > $1 AND xmin::text < txid_snapshot_xmin(txid_current_snapshot())::text
+            WHERE id > $1 AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
             ORDER BY id
           SQL
           .map { |row| row.fetch("id").to_i }
