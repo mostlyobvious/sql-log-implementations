@@ -8,16 +8,34 @@ end
 
 class LogTest < Minitest::Test
   def test_no_overlap_scenario_simple_reader =
-    mk_test(mk_no_overlap_scenario, simple_reader)
+    mk_test(mk_no_overlap_scenario, simple_reader) do |consumer|
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
 
   def test_no_overlap_scenario_xmin_reader =
-    mk_test(mk_no_overlap_scenario, xmin_reader)
+    mk_test(mk_no_overlap_scenario, xmin_reader) do |consumer|
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
 
   def test_overlap_scenario_simple_reader =
-    mk_test(mk_overlap_scenario, simple_reader)
+    mk_test(mk_overlap_scenario, simple_reader) do |consumer|
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
 
   def test_overlap_scenario_xmin_reader =
-    mk_test(mk_overlap_scenario, xmin_reader)
+    mk_test(mk_overlap_scenario, xmin_reader) do |consumer|
+      assert_equal 2, consumer.last_id
+      assert_equal [1, 2], consumer.consumed_ids
+    end
+
+  def test_overlap_more_xmin_reader =
+    mk_test(mk_overlap_more_scenario, xmin_reader) do |consumer|
+      assert_equal 3, consumer.last_id
+      assert_equal [1, 2, 3], consumer.consumed_ids
+    end
 
   private
 
@@ -50,6 +68,22 @@ class LogTest < Minitest::Test
       Fiber.yield
 
       dudu.resume
+    end
+  end
+
+  # kaka:      [ 2    ]
+  # dudu:   [ 1   3 ]
+  # query:         Q Q Q
+  def mk_overlap_more_scenario
+    kaka, dudu = mk_actor, mk_actor(insert_times: 2)
+    Fiber.new do
+      [dudu, dudu, kaka, kaka, dudu].each { _1.resume }
+      Fiber.yield
+
+      dudu.resume
+      Fiber.yield
+
+      kaka.resume
     end
   end
 
@@ -92,8 +126,7 @@ class LogTest < Minitest::Test
         consumer.call(reader)
       end
 
-      assert_equal 2, consumer.last_id
-      assert_equal [1, 2], consumer.consumed_ids
+      yield consumer
     end
   end
 
@@ -114,13 +147,15 @@ class LogTest < Minitest::Test
     end
   end
 
-  def mk_actor
+  def mk_actor(insert_times: 1)
     Fiber.new do
       connection = mk_connection.call
       connection.exec("BEGIN")
       Fiber.yield
-      connection.exec("INSERT INTO log DEFAULT VALUES")
-      Fiber.yield
+      insert_times.times do
+        connection.exec("INSERT INTO log DEFAULT VALUES")
+        Fiber.yield
+      end
       connection.exec("COMMIT")
     end
   end
