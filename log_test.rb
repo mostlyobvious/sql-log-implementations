@@ -46,6 +46,12 @@ class LogTest < Minitest::Test
     end
   end
 
+  def test_overlap_more_xmin_more_reader
+    mk_test(mk_overlap_more_scenario, xmin_more_reader) do |consumer|
+      assert_equal [1, 3, 2], consumer.consumed_ids
+    end
+  end
+
   private
 
   # kaka:  [ 1  ]
@@ -97,7 +103,7 @@ class LogTest < Minitest::Test
   end
 
   def simple_reader
-    lambda do |connection, last_id|
+    lambda do |connection, last_id, _|
       rows =
         connection
           .exec_params(<<~SQL, [last_id])
@@ -107,22 +113,43 @@ class LogTest < Minitest::Test
             ORDER BY id
           SQL
           .map { |row| row.fetch("id").to_i }
-      [rows.last, rows]
+      [rows, rows.last, nil]
     end
   end
 
   def xmin_reader
-    lambda do |connection, last_id|
+    lambda do |connection, last_id, _|
       rows =
         connection
           .exec_params(<<~SQL, [last_id])
             SELECT id 
             FROM log 
-            WHERE id > $1 AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
+            WHERE id > $1 
+              AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
             ORDER BY id
           SQL
           .map { |row| row.fetch("id").to_i }
-      [rows.last, rows]
+      [rows, rows.last, nil]
+    end
+  end
+
+  # | id | xmin |
+  # | 1  | 4865 |
+  # | 2  | 4866 |
+  # | 3  | 4865 |
+  def xmin_more_reader
+    lambda do |connection, last_id, last_trans_id|
+      rows = connection.exec_params(<<~SQL, [last_trans_id]).to_a
+            SELECT id, xmin::text as trans_id
+            FROM log 
+            WHERE (xmin::text > $1::text) AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
+            ORDER BY xmin::text
+          SQL
+      [
+        rows.map { |row| row.fetch("id").to_i },
+        rows.last&.fetch("id").to_i,
+        rows.last&.fetch("trans_id").to_i
+      ]
     end
   end
 
@@ -177,14 +204,17 @@ class LogTest < Minitest::Test
     def initialize(connection)
       @connection = connection
       @last_id = 0
+      @last_trans_id = 0
       @consumed_ids = []
     end
 
     def call(implementation)
-      last_id, consumed_ids = implementation.call(@connection, @last_id)
+      consumed_ids, last_id, last_trans_id =
+        implementation.call(@connection, @last_id, @last_trans_id)
       return if consumed_ids.empty?
 
       @last_id = last_id
+      @last_trans_id = last_trans_id
       @consumed_ids.concat(consumed_ids)
     end
   end
