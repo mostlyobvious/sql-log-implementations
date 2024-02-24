@@ -52,6 +52,13 @@ class LogTest < Minitest::Test
     end
   end
 
+  def test_overlap_more_share_lock_reader
+    mk_test(mk_overlap_more_scenario, share_lock_reader) do |consumer|
+      assert_equal 3, consumer.last_id
+      assert_equal [1, 2, 3], consumer.consumed_ids
+    end
+  end
+
   private
 
   # kaka:  [ 1  ]
@@ -150,6 +157,27 @@ class LogTest < Minitest::Test
         rows.last&.fetch("id").to_i,
         rows.last&.fetch("trans_id").to_i
       ]
+    end
+  end
+
+  def share_lock_reader
+    lambda do |connection, last_id, _|
+      connection.exec("BEGIN")
+      connection.exec("LOCK TABLE log IN SHARE MODE NOWAIT")
+      rows =
+        connection
+          .exec_params(<<~SQL, [last_id])
+            SELECT id
+            FROM log
+            WHERE id > $1
+            ORDER BY id
+          SQL
+          .map { |row| row.fetch("id").to_i }
+      connection.exec("COMMIT")
+      [rows, rows.last, nil]
+    rescue PG::LockNotAvailable
+      connection.exec("ROLLBACK")
+      [[], nil, nil]
     end
   end
 
