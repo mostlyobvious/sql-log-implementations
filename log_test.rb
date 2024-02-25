@@ -176,8 +176,7 @@ class LogTest < Minitest::Test
     connection = mk_connection.call
     connection.exec(<<~SQL)
       CREATE TABLE log (
-        id   serial  primary key, 
-        name varchar
+        id serial primary key
       )
     SQL
     yield connection
