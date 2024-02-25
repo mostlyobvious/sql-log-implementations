@@ -120,7 +120,7 @@ class LogTest < Minitest::Test
         SELECT id, txid::text
         FROM log 
         WHERE id > $1 AND txid < pg_snapshot_xmin(pg_current_snapshot())
-        ORDER BY id
+        ORDER BY txid, id
       SQL
     end
   end
@@ -135,7 +135,7 @@ class LogTest < Minitest::Test
         SELECT id, txid::text
         FROM log 
         WHERE txid > $1::xid8 AND txid < pg_snapshot_xmin(pg_current_snapshot())
-        ORDER BY txid
+        ORDER BY txid, id
       SQL
     end
   end
