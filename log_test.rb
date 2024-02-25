@@ -184,6 +184,10 @@ class LogTest < Minitest::Test
   def mk_connection
     lambda do
       connection = PG.connect(dbname: "log")
+      connection.type_map_for_results =
+        PG::BasicTypeMapForResults.new(connection)
+      connection.type_map_for_queries =
+        PG::BasicTypeMapForQueries.new(connection)
       connection.exec("SET idle_in_transaction_session_timeout = 1000")
       connection
     end
@@ -217,9 +221,9 @@ class LogTest < Minitest::Test
       rows = implementation.call(@connection, @last_id, @last_txid)
       return if rows.empty?
 
-      @last_id = rows.last["id"].to_i
+      @last_id = rows.last["id"]
       @last_txid = rows.last["txid"]
-      @result.concat(rows.map { _1["id"].to_i })
+      @result.concat(rows.map { _1["id"] })
     end
   end
 end
