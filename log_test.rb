@@ -11,7 +11,6 @@ require "json"
 
 $data_rows_in_order =
   lambda do
-    Minitest::Test.i_suck_and_my_tests_are_order_dependent!
     CSV.parse(
       <<~SPEC,
         scenario_name              | reader_name       | expected_result
