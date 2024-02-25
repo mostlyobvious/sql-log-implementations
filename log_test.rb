@@ -9,14 +9,12 @@ end
 class LogTest < Minitest::Test
   def test_no_overlap_scenario_simple_reader
     mk_test(mk_no_overlap_scenario, simple_reader) do |consumer|
-      assert_equal 2, consumer.last_id
       assert_equal [1, 2], consumer.consumed_ids
     end
   end
 
   def test_no_overlap_scenario_xmin_reader
     mk_test(mk_no_overlap_scenario, xmin_reader) do |consumer|
-      assert_equal 2, consumer.last_id
       assert_equal [1, 2], consumer.consumed_ids
     end
   end
@@ -25,14 +23,12 @@ class LogTest < Minitest::Test
     skip "FAIL"
 
     mk_test(mk_overlap_scenario, simple_reader) do |consumer|
-      assert_equal 2, consumer.last_id
       assert_equal [1, 2], consumer.consumed_ids
     end
   end
 
   def test_overlap_scenario_xmin_reader
     mk_test(mk_overlap_scenario, xmin_reader) do |consumer|
-      assert_equal 2, consumer.last_id
       assert_equal [1, 2], consumer.consumed_ids
     end
   end
@@ -41,7 +37,6 @@ class LogTest < Minitest::Test
     skip "FAIL"
 
     mk_test(mk_overlap_more_scenario, xmin_reader) do |consumer|
-      assert_equal 3, consumer.last_id
       assert_equal [1, 2, 3], consumer.consumed_ids
     end
   end
@@ -54,7 +49,6 @@ class LogTest < Minitest::Test
 
   def test_overlap_more_share_lock_reader
     mk_test(mk_overlap_more_scenario, share_lock_reader) do |consumer|
-      assert_equal 3, consumer.last_id
       assert_equal [1, 2, 3], consumer.consumed_ids
     end
   end
@@ -227,7 +221,7 @@ class LogTest < Minitest::Test
   def mk_consumer = Consumer.new(mk_connection.call)
 
   class Consumer
-    attr_reader :last_id, :consumed_ids
+    attr_reader :consumed_ids
 
     def initialize(connection)
       @connection = connection
