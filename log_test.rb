@@ -9,25 +9,25 @@ end
 class LogTest < Minitest::Test
   def test_no_overlap_scenario_simple_reader
     mk_test(mk_no_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2], consumer.result
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
   def test_no_overlap_scenario_xmin_id_reader
     mk_test(mk_no_overlap_scenario, xmin_id_reader) do |consumer|
-      assert_equal [1, 2], consumer.result
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
   def test_overlap_scenario_simple_reader
     mk_test(mk_simple_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2], consumer.result
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
   def test_overlap_scenario_xmin_id_reader
     mk_test(mk_simple_overlap_scenario, xmin_id_reader) do |consumer|
-      assert_equal [1, 2], consumer.result
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
@@ -51,12 +51,14 @@ class LogTest < Minitest::Test
 
   private
 
-  # kaka:  B 1  C
-  # dudu:   B 2   C
-  # query:     Q Q Q
+  # baba:  B 1 C
+  # kaka:        B 2  C
+  # dudu:         B 3   C
+  # query:           Q Q Q
   def mk_no_overlap_scenario
-    kaka, dudu = mk_actor, mk_actor
+    baba, kaka, dudu = mk_actor, mk_actor, mk_actor
     Fiber.new do
+      3.times { baba.resume }
       [kaka, dudu, kaka, dudu].each { _1.resume }
       Fiber.yield
 
@@ -67,12 +69,14 @@ class LogTest < Minitest::Test
     end
   end
 
-  # kaka:  B   2 C
-  # dudu:   B 1    C
-  # query:      Q Q Q
+  # baba:  B 1 C
+  # kaka:        B   3 C
+  # dudu:         B 2    C
+  # query:            Q Q Q
   def mk_simple_overlap_scenario
-    kaka, dudu = mk_actor, mk_actor
+    baba, kaka, dudu = mk_actor, mk_actor, mk_actor
     Fiber.new do
+      3.times { baba.resume }
       [kaka, dudu, dudu, kaka].each { _1.resume }
       Fiber.yield
 
