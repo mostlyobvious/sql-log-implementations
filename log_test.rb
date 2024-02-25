@@ -10,9 +10,8 @@ require "csv"
 require "json"
 
 $data_rows_in_order =
-  lambda do
-    CSV.parse(
-      <<~SPEC,
+  CSV.parse(
+    <<~SPEC,
         scenario_name              | reader_name       | expected_result
 
         mk_no_overlap_scenario     | simple_reader     | [1, 2, 3]
@@ -30,13 +29,12 @@ $data_rows_in_order =
         mk_tricky_overlap_scenario | xmin_txid_reader  | [1, 3, 2]
         mk_tricky_overlap_scenario | share_lock_reader | [1, 2, 3]
     SPEC
-      col_sep: "|",
-      skip_blanks: true,
-      strip: true,
-      headers: true,
-      return_headers: false
-    ).each
-  end.call
+    col_sep: "|",
+    skip_blanks: true,
+    strip: true,
+    headers: true,
+    return_headers: false
+  )
 
 class LogTest < Minitest::Test
   $data_rows_in_order.each do |row|
