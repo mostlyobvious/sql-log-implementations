@@ -13,8 +13,8 @@ class LogTest < Minitest::Test
     end
   end
 
-  def test_no_overlap_scenario_xmin_reader
-    mk_test(mk_no_overlap_scenario, xmin_reader) do |consumer|
+  def test_no_overlap_scenario_xmin_id_reader
+    mk_test(mk_no_overlap_scenario, xmin_id_reader) do |consumer|
       assert_equal [1, 2], consumer.result
     end
   end
@@ -27,22 +27,22 @@ class LogTest < Minitest::Test
     end
   end
 
-  def test_overlap_scenario_xmin_reader
-    mk_test(mk_simple_overlap_scenario, xmin_reader) do |consumer|
+  def test_overlap_scenario_xmin_id_reader
+    mk_test(mk_simple_overlap_scenario, xmin_id_reader) do |consumer|
       assert_equal [1, 2], consumer.result
     end
   end
 
-  def test_overlap_more_xmin_reader
+  def test_overlap_more_xmin_id_reader
     skip "FAIL"
 
-    mk_test(mk_tricky_overlap_scenario, xmin_reader) do |consumer|
+    mk_test(mk_tricky_overlap_scenario, xmin_id_reader) do |consumer|
       assert_equal [1, 2, 3], consumer.result
     end
   end
 
-  def test_overlap_more_xmin_more_reader
-    mk_test(mk_tricky_overlap_scenario, xmin_more_reader) do |consumer|
+  def test_overlap_more_xmin_txid_reader
+    mk_test(mk_tricky_overlap_scenario, xmin_txid_reader) do |consumer|
       assert_equal [1, 3, 2], consumer.result
     end
   end
@@ -114,7 +114,7 @@ class LogTest < Minitest::Test
     end
   end
 
-  def xmin_reader
+  def xmin_id_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_id]).to_a
         SELECT id, txid::text
@@ -125,7 +125,7 @@ class LogTest < Minitest::Test
     end
   end
 
-  def xmin_more_reader
+  def xmin_txid_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_txid]).to_a
         SELECT id, txid::text
