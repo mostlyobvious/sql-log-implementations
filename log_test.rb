@@ -106,7 +106,7 @@ class LogTest < Minitest::Test
   def simple_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_id]).to_a
-        SELECT id 
+        SELECT id, txid::text
         FROM log 
         WHERE id > $1
         ORDER BY id
@@ -117,7 +117,7 @@ class LogTest < Minitest::Test
   def xmin_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_id]).to_a
-        SELECT id 
+        SELECT id, txid::text
         FROM log 
         WHERE id > $1 AND txid < pg_snapshot_xmin(pg_current_snapshot())
         ORDER BY id
@@ -145,7 +145,7 @@ class LogTest < Minitest::Test
       connection.exec("BEGIN")
       connection.exec("LOCK TABLE log IN SHARE MODE NOWAIT")
       rows = connection.exec_params(<<~SQL, [last_id]).to_a
-        SELECT id
+        SELECT id, txid::text
         FROM log
         WHERE id > $1
         ORDER BY id
