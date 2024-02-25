@@ -51,8 +51,8 @@ class LogTest < Minitest::Test
 
   private
 
-  # kaka:  [ 1  ]
-  # dudu:   [ 2   ]
+  # kaka:  B 1  C
+  # dudu:   B 2   C
   # query:     Q Q Q
   def mk_no_overlap_scenario
     kaka, dudu = mk_actor, mk_actor
@@ -67,8 +67,8 @@ class LogTest < Minitest::Test
     end
   end
 
-  # kaka:  [   2 ]
-  # dudu:   [ 1    ]
+  # kaka:  B   2 C
+  # dudu:   B 1    C
   # query:      Q Q Q
   def mk_simple_overlap_scenario
     kaka, dudu = mk_actor, mk_actor
@@ -83,8 +83,8 @@ class LogTest < Minitest::Test
     end
   end
 
-  # kaka:      [ 2    ]
-  # dudu:   [ 1   3 ]
+  # kaka:      B 2    C
+  # dudu:   B 1   3 C
   # query:         Q Q Q
   def mk_tricky_overlap_scenario
     kaka, dudu = mk_actor, mk_actor(insert_times: 2)
