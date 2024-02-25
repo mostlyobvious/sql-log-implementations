@@ -119,8 +119,7 @@ class LogTest < Minitest::Test
       rows = connection.exec_params(<<~SQL, [last_id]).to_a
         SELECT id 
         FROM log 
-        WHERE id > $1 
-          AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
+        WHERE id > $1 AND txid < pg_snapshot_xmin(pg_current_snapshot())
         ORDER BY id
       SQL
     end
@@ -133,10 +132,10 @@ class LogTest < Minitest::Test
   def xmin_more_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_txid]).to_a
-        SELECT id, xmin::text as txid
+        SELECT id, txid::text
         FROM log 
-        WHERE (xmin::text > $1::text) AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
-        ORDER BY xmin::text
+        WHERE txid > $1::xid8 AND txid < pg_snapshot_xmin(pg_current_snapshot())
+        ORDER BY txid
       SQL
     end
   end
@@ -176,7 +175,10 @@ class LogTest < Minitest::Test
     connection = mk_connection.call
     connection.exec(<<~SQL)
       CREATE TABLE log (
-        id serial primary key
+        id   serial      primary key,
+        evid uuid        not null default gen_random_uuid(),
+        txid xid8        not null default pg_current_xact_id(),
+        time timestamptz not null default now()
       )
     SQL
     yield connection
