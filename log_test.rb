@@ -221,9 +221,8 @@ class LogTest < Minitest::Test
       rows = implementation.call(@connection, @last_id, @last_txid)
       return if rows.empty?
 
-      @last_id = rows.last["id"]
-      @last_txid = rows.last["txid"]
-      @result.concat(rows.map { _1["id"] })
+      @last_id, @last_txid = rows.last.values_at("id", "txid")
+      @result += rows.map { _1["id"] }
     end
   end
 end
