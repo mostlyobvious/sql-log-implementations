@@ -225,18 +225,17 @@ class LogTest < Minitest::Test
 
     def initialize(connection)
       @connection = connection
-      @last_id = 0
-      @last_trans_id = 0
+      @last_id, @last_txid = 0, 0
       @consumed_ids = []
     end
 
     def call(implementation)
-      consumed_ids, last_id, last_trans_id =
-        implementation.call(@connection, @last_id, @last_trans_id)
+      consumed_ids, last_id, last_txid =
+        implementation.call(@connection, @last_id, @last_txid)
       return if consumed_ids.empty?
 
       @last_id = last_id
-      @last_trans_id = last_trans_id
+      @last_txid = last_txid
       @consumed_ids.concat(consumed_ids)
     end
   end
