@@ -9,13 +9,13 @@ end
 class LogTest < Minitest::Test
   def test_no_overlap_scenario_simple_reader
     mk_test(mk_no_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2], consumer.consumed_ids
+      assert_equal [1, 2], consumer.result
     end
   end
 
   def test_no_overlap_scenario_xmin_reader
     mk_test(mk_no_overlap_scenario, xmin_reader) do |consumer|
-      assert_equal [1, 2], consumer.consumed_ids
+      assert_equal [1, 2], consumer.result
     end
   end
 
@@ -23,13 +23,13 @@ class LogTest < Minitest::Test
     skip "FAIL"
 
     mk_test(mk_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2], consumer.consumed_ids
+      assert_equal [1, 2], consumer.result
     end
   end
 
   def test_overlap_scenario_xmin_reader
     mk_test(mk_overlap_scenario, xmin_reader) do |consumer|
-      assert_equal [1, 2], consumer.consumed_ids
+      assert_equal [1, 2], consumer.result
     end
   end
 
@@ -37,19 +37,19 @@ class LogTest < Minitest::Test
     skip "FAIL"
 
     mk_test(mk_overlap_more_scenario, xmin_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.consumed_ids
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
   def test_overlap_more_xmin_more_reader
     mk_test(mk_overlap_more_scenario, xmin_more_reader) do |consumer|
-      assert_equal [1, 3, 2], consumer.consumed_ids
+      assert_equal [1, 3, 2], consumer.result
     end
   end
 
   def test_overlap_more_share_lock_reader
     mk_test(mk_overlap_more_scenario, share_lock_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.consumed_ids
+      assert_equal [1, 2, 3], consumer.result
     end
   end
 
@@ -205,12 +205,12 @@ class LogTest < Minitest::Test
   def mk_consumer = Consumer.new(mk_connection.call)
 
   class Consumer
-    attr_reader :consumed_ids
+    attr_reader :result
 
     def initialize(connection)
       @connection = connection
       @last_id, @last_txid = 0, 0
-      @consumed_ids = []
+      @result = []
     end
 
     def call(implementation)
@@ -219,7 +219,7 @@ class LogTest < Minitest::Test
 
       @last_id = rows.last["id"].to_i
       @last_txid = rows.last["txid"]
-      @consumed_ids.concat(rows.map { _1["id"].to_i })
+      @result.concat(rows.map { _1["id"].to_i })
     end
   end
 end
