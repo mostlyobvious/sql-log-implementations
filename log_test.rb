@@ -9,41 +9,40 @@ end
 require "csv"
 require "json"
 
-$data_rows_in_order =
-  CSV.parse(
-    <<~SPEC,
-        scenario_name              | reader_name       | expected_result
-
-        mk_no_overlap_scenario     | simple_reader     | [1, 2, 3]
-        mk_no_overlap_scenario     | xmin_id_reader    | [1, 2, 3]
-        mk_no_overlap_scenario     | xmin_txid_reader  | [1, 2, 3]
-        mk_no_overlap_scenario     | share_lock_reader | [1, 2, 3]
-
-        mk_simple_overlap_scenario | simple_reader     | [1, 2, 3]
-        mk_simple_overlap_scenario | xmin_id_reader    | [1, 2, 3]
-        mk_simple_overlap_scenario | xmin_txid_reader  | [1, 2, 3]
-        mk_simple_overlap_scenario | share_lock_reader | [1, 2, 3]
-
-        mk_tricky_overlap_scenario | simple_reader     | [1, 2, 3]
-        mk_tricky_overlap_scenario | xmin_id_reader    | [1, 2, 3]
-        mk_tricky_overlap_scenario | xmin_txid_reader  | [1, 3, 2]
-        mk_tricky_overlap_scenario | share_lock_reader | [1, 2, 3]
-    SPEC
-    col_sep: "|",
-    skip_blanks: true,
-    strip: true,
-    headers: true,
-    return_headers: false
-  )
-
 class LogTest < Minitest::Test
-  $data_rows_in_order.each do |row|
-    define_method("test_#{row["scenario_name"]}_#{row["reader_name"]}") do
-      mk_test(
-        send(row["scenario_name"]),
-        send(row["reader_name"]),
-        JSON.parse(row["expected_result"])
-      )
+  def self.parse_specification(spec) =
+    CSV.parse(spec, col_sep: "|", skip_blanks: true, strip: true)
+
+  parse_specification(
+    <<~SPEC
+      mk_no_overlap_scenario     | simple_reader     | [1, 2, 3]
+      mk_no_overlap_scenario     | xmin_id_reader    | [1, 2, 3]
+      mk_no_overlap_scenario     | xmin_txid_reader  | [1, 2, 3]
+      mk_no_overlap_scenario     | share_lock_reader | [1, 2, 3]
+
+      mk_simple_overlap_scenario | simple_reader     | [1, 2, 3]
+      mk_simple_overlap_scenario | xmin_id_reader    | [1, 2, 3]
+      mk_simple_overlap_scenario | xmin_txid_reader  | [1, 2, 3]
+      mk_simple_overlap_scenario | share_lock_reader | [1, 2, 3]
+
+      mk_tricky_overlap_scenario | simple_reader     | [1, 2, 3]
+      mk_tricky_overlap_scenario | xmin_id_reader    | [1, 2, 3]
+      mk_tricky_overlap_scenario | xmin_txid_reader  | [1, 3, 2]
+      mk_tricky_overlap_scenario | share_lock_reader | [1, 2, 3]
+    SPEC
+  ).each do |(scenario_name, reader_name, expected_result)|
+    define_method("test_#{scenario_name}_#{reader_name}") do
+      scenario, reader = send(scenario_name), send(reader_name)
+      consumer = mk_consumer
+
+      run_lifecycle do
+        3.times do
+          scenario.resume
+          consumer.call(reader)
+        end
+
+        assert_equal JSON.parse(expected_result), consumer.result
+      end
     end
   end
 
@@ -149,19 +148,6 @@ class LogTest < Minitest::Test
     rescue PG::LockNotAvailable
       connection.exec("ROLLBACK")
       []
-    end
-  end
-
-  def mk_test(scenario, reader, expected_result)
-    consumer = mk_consumer
-
-    run_lifecycle do
-      3.times do
-        scenario.resume
-        consumer.call(reader)
-      end
-
-      assert_equal expected_result, consumer.result
     end
   end
 
