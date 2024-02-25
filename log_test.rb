@@ -6,18 +6,27 @@ gemfile do
   gem "pg"
 end
 
+require "csv"
+
+$data_rows_in_order =
+  lambda do
+    Minitest::Test.i_suck_and_my_tests_are_order_dependent!
+    CSV.parse(
+      DATA.read,
+      col_sep: "|",
+      skip_blanks: true,
+      strip: true,
+      headers: true,
+      return_headers: false
+    ).each
+  end.call
+
 class LogTest < Minitest::Test
-  [
-    [:mk_no_overlap_scenario, :simple_reader, [1, 2, 3]],
-    [:mk_no_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
-    [:mk_simple_overlap_scenario, :simple_reader, [1, 2, 3]],
-    [:mk_simple_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
-    [:mk_tricky_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
-    [:mk_tricky_overlap_scenario, :xmin_txid_reader, [1, 3, 2]],
-    [:mk_tricky_overlap_scenario, :share_lock_reader, [1, 2, 3]]
-  ].each do |scenario_name, reader_name, expected_result|
-    define_method("test_#{scenario_name}_#{reader_name}") do
-      mk_test(send(scenario_name), send(reader_name), expected_result)
+  $data_rows_in_order.each do |row|
+    result = row["expected_result"].split(",").map(&:strip).map(&:to_i)
+
+    define_method("test_#{row["scenario_name"]}_#{row["reader_name"]}") do
+      mk_test(send(row["scenario_name"]), send(row["reader_name"]), result)
     end
   end
 
@@ -200,3 +209,15 @@ class LogTest < Minitest::Test
     end
   end
 end
+
+__END__
+
+scenario_name              | reader_name       | expected_result
+mk_no_overlap_scenario     | simple_reader     | 1, 2, 3
+mk_no_overlap_scenario     | xmin_id_reader    | 1, 2, 3
+mk_simple_overlap_scenario | simple_reader     | 1, 2, 3
+mk_simple_overlap_scenario | xmin_id_reader    | 1, 2, 3
+mk_tricky_overlap_scenario | xmin_id_reader    | 1, 2, 3
+mk_tricky_overlap_scenario | xmin_txid_reader  | 1, 3, 2
+mk_tricky_overlap_scenario | share_lock_reader | 1, 2, 3
+
