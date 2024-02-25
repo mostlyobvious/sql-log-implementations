@@ -22,13 +22,13 @@ class LogTest < Minitest::Test
   def test_overlap_scenario_simple_reader
     skip "FAIL"
 
-    mk_test(mk_overlap_scenario, simple_reader) do |consumer|
+    mk_test(mk_simple_overlap_scenario, simple_reader) do |consumer|
       assert_equal [1, 2], consumer.result
     end
   end
 
   def test_overlap_scenario_xmin_reader
-    mk_test(mk_overlap_scenario, xmin_reader) do |consumer|
+    mk_test(mk_simple_overlap_scenario, xmin_reader) do |consumer|
       assert_equal [1, 2], consumer.result
     end
   end
@@ -36,19 +36,19 @@ class LogTest < Minitest::Test
   def test_overlap_more_xmin_reader
     skip "FAIL"
 
-    mk_test(mk_overlap_more_scenario, xmin_reader) do |consumer|
+    mk_test(mk_tricky_overlap_scenario, xmin_reader) do |consumer|
       assert_equal [1, 2, 3], consumer.result
     end
   end
 
   def test_overlap_more_xmin_more_reader
-    mk_test(mk_overlap_more_scenario, xmin_more_reader) do |consumer|
+    mk_test(mk_tricky_overlap_scenario, xmin_more_reader) do |consumer|
       assert_equal [1, 3, 2], consumer.result
     end
   end
 
   def test_overlap_more_share_lock_reader
-    mk_test(mk_overlap_more_scenario, share_lock_reader) do |consumer|
+    mk_test(mk_tricky_overlap_scenario, share_lock_reader) do |consumer|
       assert_equal [1, 2, 3], consumer.result
     end
   end
@@ -74,7 +74,7 @@ class LogTest < Minitest::Test
   # kaka:  [   2 ]
   # dudu:   [ 1    ]
   # query:      Q Q Q
-  def mk_overlap_scenario
+  def mk_simple_overlap_scenario
     kaka, dudu = mk_actor, mk_actor
     Fiber.new do
       [kaka, dudu, dudu, kaka].each { _1.resume }
@@ -90,7 +90,7 @@ class LogTest < Minitest::Test
   # kaka:      [ 2    ]
   # dudu:   [ 1   3 ]
   # query:         Q Q Q
-  def mk_overlap_more_scenario
+  def mk_tricky_overlap_scenario
     kaka, dudu = mk_actor, mk_actor(insert_times: 2)
     Fiber.new do
       [dudu, dudu, kaka, kaka, dudu].each { _1.resume }
@@ -125,10 +125,6 @@ class LogTest < Minitest::Test
     end
   end
 
-  # | id | xmin |
-  # | 1  | 4865 |
-  # | 2  | 4866 |
-  # | 3  | 4865 |
   def xmin_more_reader
     lambda do |connection, last_id, last_txid|
       rows = connection.exec_params(<<~SQL, [last_txid]).to_a
