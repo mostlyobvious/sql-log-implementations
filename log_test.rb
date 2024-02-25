@@ -7,47 +7,26 @@ gemfile do
 end
 
 class LogTest < Minitest::Test
-  def test_no_overlap_scenario_simple_reader
-    mk_test(mk_no_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_no_overlap_scenario_simple_reader =
+    mk_test mk_no_overlap_scenario, simple_reader, [1, 2, 3]
 
-  def test_no_overlap_scenario_xmin_id_reader
-    mk_test(mk_no_overlap_scenario, xmin_id_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_no_overlap_scenario_xmin_id_reader =
+    mk_test mk_no_overlap_scenario, xmin_id_reader, [1, 2, 3]
 
-  def test_overlap_scenario_simple_reader
-    mk_test(mk_simple_overlap_scenario, simple_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_overlap_scenario_simple_reader =
+    mk_test mk_simple_overlap_scenario, simple_reader, [1, 2, 3]
 
-  def test_overlap_scenario_xmin_id_reader
-    mk_test(mk_simple_overlap_scenario, xmin_id_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_overlap_scenario_xmin_id_reader =
+    mk_test mk_simple_overlap_scenario, xmin_id_reader, [1, 2, 3]
 
-  def test_overlap_more_xmin_id_reader
-    mk_test(mk_tricky_overlap_scenario, xmin_id_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_overlap_more_xmin_id_reader =
+    mk_test mk_tricky_overlap_scenario, xmin_id_reader, [1, 2, 3]
 
-  def test_overlap_more_xmin_txid_reader
-    mk_test(mk_tricky_overlap_scenario, xmin_txid_reader) do |consumer|
-      assert_equal [1, 3, 2], consumer.result
-    end
-  end
+  def test_overlap_more_xmin_txid_reader =
+    mk_test mk_tricky_overlap_scenario, xmin_txid_reader, [1, 3, 2]
 
-  def test_overlap_more_share_lock_reader
-    mk_test(mk_tricky_overlap_scenario, share_lock_reader) do |consumer|
-      assert_equal [1, 2, 3], consumer.result
-    end
-  end
+  def test_overlap_more_share_lock_reader =
+    mk_test mk_tricky_overlap_scenario, share_lock_reader, [1, 2, 3]
 
   private
 
@@ -154,7 +133,7 @@ class LogTest < Minitest::Test
     end
   end
 
-  def mk_test(scenario, reader)
+  def mk_test(scenario, reader, expected_result)
     consumer = mk_consumer
 
     run_lifecycle do
@@ -163,7 +142,7 @@ class LogTest < Minitest::Test
         consumer.call(reader)
       end
 
-      yield consumer
+      assert_equal expected_result, consumer.result
     end
   end
 
