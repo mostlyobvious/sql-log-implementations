@@ -104,33 +104,25 @@ class LogTest < Minitest::Test
   end
 
   def simple_reader
-    lambda do |connection, last_id, _|
-      rows =
-        connection
-          .exec_params(<<~SQL, [last_id])
-            SELECT id 
-            FROM log 
-            WHERE id > $1
-            ORDER BY id
-          SQL
-          .map { |row| row.fetch("id").to_i }
-      [rows, rows.last, nil]
+    lambda do |connection, last_id, last_txid|
+      rows = connection.exec_params(<<~SQL, [last_id]).to_a
+        SELECT id 
+        FROM log 
+        WHERE id > $1
+        ORDER BY id
+      SQL
     end
   end
 
   def xmin_reader
-    lambda do |connection, last_id, _|
-      rows =
-        connection
-          .exec_params(<<~SQL, [last_id])
-            SELECT id 
-            FROM log 
-            WHERE id > $1 
-              AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
-            ORDER BY id
-          SQL
-          .map { |row| row.fetch("id").to_i }
-      [rows, rows.last, nil]
+    lambda do |connection, last_id, last_txid|
+      rows = connection.exec_params(<<~SQL, [last_id]).to_a
+        SELECT id 
+        FROM log 
+        WHERE id > $1 
+          AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
+        ORDER BY id
+      SQL
     end
   end
 
@@ -139,39 +131,31 @@ class LogTest < Minitest::Test
   # | 2  | 4866 |
   # | 3  | 4865 |
   def xmin_more_reader
-    lambda do |connection, last_id, last_trans_id|
-      rows = connection.exec_params(<<~SQL, [last_trans_id]).to_a
-            SELECT id, xmin::text as trans_id
-            FROM log 
-            WHERE (xmin::text > $1::text) AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
-            ORDER BY xmin::text
-          SQL
-      [
-        rows.map { |row| row.fetch("id").to_i },
-        rows.last&.fetch("id").to_i,
-        rows.last&.fetch("trans_id").to_i
-      ]
+    lambda do |connection, last_id, last_txid|
+      rows = connection.exec_params(<<~SQL, [last_txid]).to_a
+        SELECT id, xmin::text as txid
+        FROM log 
+        WHERE (xmin::text > $1::text) AND xmin::text < pg_snapshot_xmin(pg_current_snapshot())::text
+        ORDER BY xmin::text
+      SQL
     end
   end
 
   def share_lock_reader
-    lambda do |connection, last_id, _|
+    lambda do |connection, last_id, last_txid|
       connection.exec("BEGIN")
       connection.exec("LOCK TABLE log IN SHARE MODE NOWAIT")
-      rows =
-        connection
-          .exec_params(<<~SQL, [last_id])
-            SELECT id
-            FROM log
-            WHERE id > $1
-            ORDER BY id
-          SQL
-          .map { |row| row.fetch("id").to_i }
+      rows = connection.exec_params(<<~SQL, [last_id]).to_a
+        SELECT id
+        FROM log
+        WHERE id > $1
+        ORDER BY id
+      SQL
       connection.exec("COMMIT")
-      [rows, rows.last, nil]
+      rows
     rescue PG::LockNotAvailable
       connection.exec("ROLLBACK")
-      [[], nil, nil]
+      []
     end
   end
 
@@ -230,13 +214,12 @@ class LogTest < Minitest::Test
     end
 
     def call(implementation)
-      consumed_ids, last_id, last_txid =
-        implementation.call(@connection, @last_id, @last_txid)
-      return if consumed_ids.empty?
+      rows = implementation.call(@connection, @last_id, @last_txid)
+      return if rows.empty?
 
-      @last_id = last_id
-      @last_txid = last_txid
-      @consumed_ids.concat(consumed_ids)
+      @last_id = rows.last["id"].to_i
+      @last_txid = rows.last["txid"]
+      @consumed_ids.concat(rows.map { _1["id"].to_i })
     end
   end
 end
