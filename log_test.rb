@@ -174,7 +174,12 @@ class LogTest < Minitest::Test
 
   def run_lifecycle
     connection = mk_connection.call
-    connection.exec("CREATE TABLE log (id serial primary key, name varchar)")
+    connection.exec(<<~SQL)
+      CREATE TABLE log (
+        id   serial  primary key, 
+        name varchar
+      )
+    SQL
     yield connection
   rescue PG::QueryCanceled => e
   ensure
