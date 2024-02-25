@@ -20,8 +20,6 @@ class LogTest < Minitest::Test
   end
 
   def test_overlap_scenario_simple_reader
-    skip "FAIL"
-
     mk_test(mk_simple_overlap_scenario, simple_reader) do |consumer|
       assert_equal [1, 2], consumer.result
     end
@@ -34,8 +32,6 @@ class LogTest < Minitest::Test
   end
 
   def test_overlap_more_xmin_id_reader
-    skip "FAIL"
-
     mk_test(mk_tricky_overlap_scenario, xmin_id_reader) do |consumer|
       assert_equal [1, 2, 3], consumer.result
     end
