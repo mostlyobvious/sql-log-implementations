@@ -56,7 +56,7 @@ class LogTest < Minitest::Test
   # dudu:         B 3   C
   # query:           Q Q Q
   def mk_no_overlap_scenario
-    baba, kaka, dudu = mk_actor, mk_actor, mk_actor
+    baba, kaka, dudu = mk_actor(1), mk_actor(1), mk_actor(1)
     Fiber.new do
       3.times { baba.resume }
       [kaka, dudu, kaka, dudu].each { _1.resume }
@@ -74,7 +74,7 @@ class LogTest < Minitest::Test
   # dudu:         B 2    C
   # query:            Q Q Q
   def mk_simple_overlap_scenario
-    baba, kaka, dudu = mk_actor, mk_actor, mk_actor
+    baba, kaka, dudu = mk_actor(1), mk_actor(1), mk_actor(1)
     Fiber.new do
       3.times { baba.resume }
       [kaka, dudu, dudu, kaka].each { _1.resume }
@@ -91,7 +91,7 @@ class LogTest < Minitest::Test
   # dudu:   B 1   3 C
   # query:         Q Q Q
   def mk_tricky_overlap_scenario
-    kaka, dudu = mk_actor, mk_actor(insert_times: 2)
+    kaka, dudu = mk_actor(1), mk_actor(2)
     Fiber.new do
       [dudu, dudu, kaka, kaka, dudu].each { _1.resume }
       Fiber.yield
@@ -195,12 +195,12 @@ class LogTest < Minitest::Test
     end
   end
 
-  def mk_actor(insert_times: 1)
+  def mk_actor(row_count)
     Fiber.new do
       connection = mk_connection.call
       connection.exec("BEGIN")
       Fiber.yield
-      insert_times.times do
+      row_count.times do
         connection.exec("INSERT INTO log DEFAULT VALUES")
         Fiber.yield
       end
