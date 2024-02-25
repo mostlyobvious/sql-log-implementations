@@ -12,7 +12,24 @@ $data_rows_in_order =
   lambda do
     Minitest::Test.i_suck_and_my_tests_are_order_dependent!
     CSV.parse(
-      DATA.read,
+      <<~SPEC,
+        scenario_name              | reader_name       | expected_result
+
+        mk_no_overlap_scenario     | simple_reader     | 1, 2, 3
+        mk_no_overlap_scenario     | xmin_id_reader    | 1, 2, 3
+        mk_no_overlap_scenario     | xmin_txid_reader  | 1, 2, 3
+        mk_no_overlap_scenario     | share_lock_reader | 1, 2, 3
+
+        mk_simple_overlap_scenario | simple_reader     | 1, 2, 3
+        mk_simple_overlap_scenario | xmin_id_reader    | 1, 2, 3
+        mk_simple_overlap_scenario | xmin_txid_reader  | 1, 2, 3
+        mk_simple_overlap_scenario | share_lock_reader | 1, 2, 3
+
+        mk_tricky_overlap_scenario | simple_reader     | 1, 2, 3
+        mk_tricky_overlap_scenario | xmin_id_reader    | 1, 2, 3
+        mk_tricky_overlap_scenario | xmin_txid_reader  | 1, 3, 2
+        mk_tricky_overlap_scenario | share_lock_reader | 1, 2, 3
+    SPEC
       col_sep: "|",
       skip_blanks: true,
       strip: true,
@@ -209,23 +226,3 @@ class LogTest < Minitest::Test
     end
   end
 end
-
-__END__
-
-scenario_name              | reader_name       | expected_result
-
-mk_no_overlap_scenario     | simple_reader     | 1, 2, 3
-mk_no_overlap_scenario     | xmin_id_reader    | 1, 2, 3
-mk_no_overlap_scenario     | xmin_txid_reader  | 1, 2, 3
-mk_no_overlap_scenario     | share_lock_reader | 1, 2, 3
-
-mk_simple_overlap_scenario | simple_reader     | 1, 2, 3
-mk_simple_overlap_scenario | xmin_id_reader    | 1, 2, 3
-mk_simple_overlap_scenario | xmin_txid_reader  | 1, 2, 3
-mk_simple_overlap_scenario | share_lock_reader | 1, 2, 3
-
-mk_tricky_overlap_scenario | simple_reader     | 1, 2, 3
-mk_tricky_overlap_scenario | xmin_id_reader    | 1, 2, 3
-mk_tricky_overlap_scenario | xmin_txid_reader  | 1, 3, 2
-mk_tricky_overlap_scenario | share_lock_reader | 1, 2, 3
-
