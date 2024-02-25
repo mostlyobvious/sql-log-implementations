@@ -7,26 +7,19 @@ gemfile do
 end
 
 class LogTest < Minitest::Test
-  def test_no_overlap_scenario_simple_reader =
-    mk_test mk_no_overlap_scenario, simple_reader, [1, 2, 3]
-
-  def test_no_overlap_scenario_xmin_id_reader =
-    mk_test mk_no_overlap_scenario, xmin_id_reader, [1, 2, 3]
-
-  def test_overlap_scenario_simple_reader =
-    mk_test mk_simple_overlap_scenario, simple_reader, [1, 2, 3]
-
-  def test_overlap_scenario_xmin_id_reader =
-    mk_test mk_simple_overlap_scenario, xmin_id_reader, [1, 2, 3]
-
-  def test_overlap_more_xmin_id_reader =
-    mk_test mk_tricky_overlap_scenario, xmin_id_reader, [1, 2, 3]
-
-  def test_overlap_more_xmin_txid_reader =
-    mk_test mk_tricky_overlap_scenario, xmin_txid_reader, [1, 3, 2]
-
-  def test_overlap_more_share_lock_reader =
-    mk_test mk_tricky_overlap_scenario, share_lock_reader, [1, 2, 3]
+  [
+    [:mk_no_overlap_scenario, :simple_reader, [1, 2, 3]],
+    [:mk_no_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
+    [:mk_simple_overlap_scenario, :simple_reader, [1, 2, 3]],
+    [:mk_simple_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
+    [:mk_tricky_overlap_scenario, :xmin_id_reader, [1, 2, 3]],
+    [:mk_tricky_overlap_scenario, :xmin_txid_reader, [1, 3, 2]],
+    [:mk_tricky_overlap_scenario, :share_lock_reader, [1, 2, 3]]
+  ].each do |scenario_name, reader_name, expected_result|
+    define_method("test_#{scenario_name}_#{reader_name}") do
+      mk_test(send(scenario_name), send(reader_name), expected_result)
+    end
+  end
 
   private
 
