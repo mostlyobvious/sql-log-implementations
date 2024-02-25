@@ -7,6 +7,7 @@ gemfile do
 end
 
 require "csv"
+require "json"
 
 $data_rows_in_order =
   lambda do
@@ -15,20 +16,20 @@ $data_rows_in_order =
       <<~SPEC,
         scenario_name              | reader_name       | expected_result
 
-        mk_no_overlap_scenario     | simple_reader     | 1, 2, 3
-        mk_no_overlap_scenario     | xmin_id_reader    | 1, 2, 3
-        mk_no_overlap_scenario     | xmin_txid_reader  | 1, 2, 3
-        mk_no_overlap_scenario     | share_lock_reader | 1, 2, 3
+        mk_no_overlap_scenario     | simple_reader     | [1, 2, 3]
+        mk_no_overlap_scenario     | xmin_id_reader    | [1, 2, 3]
+        mk_no_overlap_scenario     | xmin_txid_reader  | [1, 2, 3]
+        mk_no_overlap_scenario     | share_lock_reader | [1, 2, 3]
 
-        mk_simple_overlap_scenario | simple_reader     | 1, 2, 3
-        mk_simple_overlap_scenario | xmin_id_reader    | 1, 2, 3
-        mk_simple_overlap_scenario | xmin_txid_reader  | 1, 2, 3
-        mk_simple_overlap_scenario | share_lock_reader | 1, 2, 3
+        mk_simple_overlap_scenario | simple_reader     | [1, 2, 3]
+        mk_simple_overlap_scenario | xmin_id_reader    | [1, 2, 3]
+        mk_simple_overlap_scenario | xmin_txid_reader  | [1, 2, 3]
+        mk_simple_overlap_scenario | share_lock_reader | [1, 2, 3]
 
-        mk_tricky_overlap_scenario | simple_reader     | 1, 2, 3
-        mk_tricky_overlap_scenario | xmin_id_reader    | 1, 2, 3
-        mk_tricky_overlap_scenario | xmin_txid_reader  | 1, 3, 2
-        mk_tricky_overlap_scenario | share_lock_reader | 1, 2, 3
+        mk_tricky_overlap_scenario | simple_reader     | [1, 2, 3]
+        mk_tricky_overlap_scenario | xmin_id_reader    | [1, 2, 3]
+        mk_tricky_overlap_scenario | xmin_txid_reader  | [1, 3, 2]
+        mk_tricky_overlap_scenario | share_lock_reader | [1, 2, 3]
     SPEC
       col_sep: "|",
       skip_blanks: true,
@@ -40,10 +41,12 @@ $data_rows_in_order =
 
 class LogTest < Minitest::Test
   $data_rows_in_order.each do |row|
-    result = row["expected_result"].split(",").map(&:strip).map(&:to_i)
-
     define_method("test_#{row["scenario_name"]}_#{row["reader_name"]}") do
-      mk_test(send(row["scenario_name"]), send(row["reader_name"]), result)
+      mk_test(
+        send(row["scenario_name"]),
+        send(row["reader_name"]),
+        JSON.parse(row["expected_result"])
+      )
     end
   end
 
