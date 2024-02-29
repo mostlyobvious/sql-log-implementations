@@ -9,7 +9,7 @@ end
 require "csv"
 require "json"
 
-class LogTest < Minitest::Test
+class PgLogTest < Minitest::Test
   def self.parse_specification(spec) =
     CSV.parse(spec, col_sep: "|", skip_blanks: true, strip: true)
 
