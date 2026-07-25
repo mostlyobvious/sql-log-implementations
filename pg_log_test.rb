@@ -4,6 +4,7 @@ gemfile do
   source "https://rubygems.org"
   gem "minitest", require: "minitest/autorun"
   gem "pg"
+  gem "csv"
 end
 
 require "csv"
